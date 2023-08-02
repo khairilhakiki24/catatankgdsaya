@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Form Pencatatan KGD</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <div class="container mt-5">
+    <h2>Form Pencatatan KGD</h2>
+    <form id="kgdForm">
+      <div class="form-group">
+        <label for="nama">Nama Pasien:</label>
+        <input type="text" class="form-control" id="nama" required>
+      </div>
+      <div class="form-group">
+        <label for="tanggal">Tanggal:</label>
+        <input type="date" class="form-control" id="tanggal" required>
+      </div>
+      <div class="form-group">
+        <label for="waktu">Waktu:</label>
+        <input type="time" class="form-control" id="waktu" required>
+      </div>
+      <div class="form-group">
+        <label for="kgd">KGD (Jumlah mg/dL):</label>
+        <input type="number" class="form-control" id="kgd" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Simpan</button>
+    </form>
+
+    <div class="mt-4">
+      <h2>Data Pencatatan KGD</h2>
+      <div class="mb-3">
+        <button id="exportButton" class="btn btn-success">Export Data</button>
+        <input id="importInput" type="file" class="ml-2" accept=".csv">
+      </div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Nama</th>
+            <th>Tanggal</th>
+            <th>Waktu</th>
+            <th>KGD (mg/dL)</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="dataKGD"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function setLocalStorage(name, value) {
+      localStorage.setItem(name, JSON.stringify(value));
+    }
+
+    function getLocalStorage(name) {
+      var value = localStorage.getItem(name);
+      return value ? JSON.parse(value) : [];
+    }
+
+    function showDataFromLocalStorage() {
+      var data = getLocalStorage("dataKGD");
+      var tableBody = $("#dataKGD");
+      tableBody.empty();
+      $.each(data, function (index, item) {
+        tableBody.append(
+          "<tr><td>" + item.nama + "</td><td>" + item.tanggal + "</td><td>" + item.waktu + "</td><td>" + item.kgd + " mg/dL</td>" +
+          "<td><button class='btn btn-sm btn-danger delete-btn' data-index='" + index + "'>Hapus</button></td></tr>"
+        );
+      });
+    }
+
+    function exportToCsv() {
+      var data = getLocalStorage("dataKGD");
+      var csvContent = "Nama,Tanggal,Waktu,KGD (mg/dL)\n";
+
+      data.forEach(function(item) {
+        csvContent += item.nama + "," + item.tanggal + "," + item.waktu + "," + item.kgd + "\n";
+      });
+
+      var encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+      var link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "dataKGD.csv");
+      document.body.appendChild(link);
+      link.click();
+    }
+
+    function importFromCsv(file) {
+      var reader = new FileReader();
+      reader.onload = function(event) {
+        var csvData = event.target.result;
+        var lines = csvData.split("\n");
+
+        var importedData = [];
+        for (var i = 1; i < lines.length; i++) {
+          var values = lines[i].split(",");
+          if (values.length === 4) {
+            importedData.push({
+              nama: values[0],
+              tanggal: values[1],
+              waktu: values[2],
+              kgd: values[3]
+            });
+          }
+        }
+
+        var existingData = getLocalStorage("dataKGD");
+        existingData = existingData.concat(importedData);
+        setLocalStorage("dataKGD", existingData);
+        showDataFromLocalStorage();
+      };
+      reader.readAsText(file);
+    }
+
+    $(document).ready(function () {
+      showDataFromLocalStorage();
+
+      $("#kgdForm").submit(function (event) {
+        event.preventDefault();
+        var nama = $("#nama").val();
+        var tanggal = new Date($("#tanggal").val());
+        var tanggalFormatted = tanggal.toLocaleDateString('en-GB');
+        var waktu = $("#waktu").val();
+        var kgd = $("#kgd").val();
+
+        var data = getLocalStorage("dataKGD");
+        data.push({ nama: nama, tanggal: tanggalFormatted, waktu: waktu, kgd: kgd });
+        setLocalStorage("dataKGD", data);
+
+        showDataFromLocalStorage();
+
+        $("#nama").val("");
+        $("#tanggal").val("");
+        $("#waktu").val("");
+        $("#kgd").val("");
+      });
+
+      $(document).on("click", ".delete-btn", function () {
+        var index = $(this).data("index");
+        var data = getLocalStorage("dataKGD");
+        data.splice(index, 1);
+        setLocalStorage("dataKGD", data);
+        showDataFromLocalStorage();
+      });
+
+      $("#exportButton").click(function() {
+        exportToCsv();
+      });
+
+      $("#importInput").change(function(event) {
+        var file = event.target.files[0];
+        if (file) {
+          importFromCsv(file);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
